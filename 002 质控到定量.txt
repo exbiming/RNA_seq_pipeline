@@ -1,0 +1,58 @@
+#导入数据
+cd ~/Documents/rna_seq/20250609_xcm/raw_data
+
+SEQLIBS=(X1.1 X1.2 X2.1 X2.2 X3.1 X3.2 X4.1 X4.2)
+LOCA=20250609_xcm
+
+for seqlib in ${SEQLIBS[@]}; do
+      ln -s /mnt/Seq_data/20250609/RawData/${seqlib}/${seqlib}_1.fq.gz
+      ln -s /mnt/Seq_data/20250609/RawData/${seqlib}/${seqlib}_2.fq.gz
+done
+
+#质控
+mkdir -p ../cleandata/report
+for seqlib in ${SEQLIBS[@]}; do
+      fastp -i ${seqlib}_1.fq.gz -o ../cleandata/${seqlib}_1.clean.fq.gz -I ${seqlib}_2.fq.gz -O ../cleandata/${seqlib}_2.clean.fq.gz --thread 64 --html ../cleandata/report/${seqlib}_1.fastp.html --json ../cleandata/report/${seqlib}_1.fastp.json 1>${seqlib}.fastp.log 2>&1
+done
+
+#比对-hisat2，txt中是hisat的比对率
+mkdir ../hisat2
+cd ../hisat2
+for seqlib in ${SEQLIBS[@]}; do
+        hisat2 -p 64 --dta -x ~/Documents/rna_seq/reference/tair10 -1  ../cleandata/${seqlib}_1.clean.fq.gz -2 ../cleandata/${seqlib}_2.clean.fq.gz -S ${seqlib}.sam 2>${seqlib}.maprate.txt
+done
+
+#转换为bam并排序，建立索引，使可用IGV查看。
+mkdir ../bam
+cd ../bam
+for seqlib in ${SEQLIBS[@]}; do
+    samtools view -@ 64 -bhS ../hisat2/${seqlib}.sam -o ${seqlib}.bam
+    samtools sort -@ 64 ${seqlib}.bam -o ${seqlib}.sorted.bam
+   samtools index -@ 64 ${seqlib}.sorted.bam   # 创建索引
+    rm ../hisat2/${seqlib}.sam
+    rm ${seqlib}.bam
+done
+
+#定量-featureCounts
+mkdir ../FCounts
+cd ../FCounts
+featureCounts -T 64 -p --countReadPairs -t exon -g gene_id -a ~/Documents/rna_seq/reference/Arabidopsis_thaliana.TAIR10.60.gtf -o expression_matrix.txt ../bam/*.sorted.bam
+
+#关于--countReadPairs参数：https://support.bioconductor.org/p/9159588/#9159589   https://www.biostars.org/p/106291/
+
+#结果提取
+head expression_matrix.txt
+
+# eatureCounts 的输出文件前面有 6 列的注释信息（geneid、chr、start、end、strand、length），从第 7 列开始才是各个样本的计数数据。这里有8个样本，所以提取了8个计数列（7~14）
+awk '{print $1"\t"$7"\t"$8"\t"$9"\t"$10"\t"$11"\t"$12"\t"$13"\t"$14}' expression_matrix.txt > expression.txt
+
+#删除第一行（header）
+sed -i '1d' expression.txt
+
+#删除第一行基因多余前后缀
+sed -i '1s/\.\.\/bam\///g; 1s/\.sorted\.bam//g' expression.txt
+
+head expression.txt
+mkdir ~/Documents/rna_seq/${LOCA}/deseq2
+cd ~/Documents/rna_seq/${LOCA}/deseq2
+ln -s ~/Documents/rna_seq/${LOCA}/FCounts/expression.txt

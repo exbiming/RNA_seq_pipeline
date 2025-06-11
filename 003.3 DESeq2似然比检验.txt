@@ -1,0 +1,52 @@
+# Likelihood Ratio Test
+# https://hbctraining.github.io/DGE_workshop/lessons/08_DGE_LRT.html
+
+# An alternative to pair-wise comparisons is to analyze all levels of a factor at once. By default the Wald test is used to generate the results table, but DESeq2 also offers the LRT which is used to identify any genes that show change in expression across the different levels. This type of test can be especially useful in analyzing time course experiments.
+
+
+R
+library(DESeq2)
+
+count_matrix <- read.table("expression.txt", sep = "\t", header = TRUE, row.names = 1)
+head(count_matrix)
+
+sample_names <- colnames(count_matrix)
+conditions <- factor(rep(c("a1", "col", "nacla1", "naclcol"), each = 2))
+print(conditions)
+
+col_data <- data.frame(
+  row.names = sample_names,
+  conditions = conditions
+)
+
+dds <- DESeqDataSetFromMatrix(countData = count_matrix,
+                              colData = col_data,
+                              design = ~ conditions)
+
+keep <- rowMeans(counts(dds)) > 10
+dds <- dds[keep, ]
+
+#完整模型中包含 condition 变量，简约模型包含截距（~1）
+dds <- DESeq(dds, test = "LRT", reduced = ~1)
+
+res <- results(dds)
+summary(res)
+
+#保存结果
+#write.csv(as.data.frame(res), "LRT.csv", quote = FALSE)
+
+
+#数据提取，以用于热图绘制
+# 筛选出 padj < 0.05 的差异基因
+sig_genes <- rownames(res)[which(res$padj < 0.05)]
+cat("筛选得到的差异表达基因数量:", length(sig_genes), "\n")
+
+#从已计算好的 VST 数据中提取差异基因的行
+vst_data <- read.csv("vst_counts.csv", header = TRUE, row.names = 1)
+
+# 提取 VST 数据中，属于差异基因的行
+vst_sig <- vst_data[rownames(vst_data) %in% sig_genes, ]
+
+# 保存差异基因的 VST 表达数据
+write.csv(vst_sig, file = "VST_LRTsig_genes.csv", quote = FALSE)
+cat("提取后的 VST 差异基因表达矩阵已保存至 VST_sig_genes.csv\n")

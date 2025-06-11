@@ -1,0 +1,41 @@
+#方法一：使用Stringtie进行定量（Reference-guided quantification）
+
+for seqlib in ${SEQLIBS[@]}; do
+    stringtie -e -B -p 64 -G ~/Documents/rna_seq/reference/Arabidopsis_thaliana.TAIR10.60.gtf -o ${seqlib}/${seqlib}.gtf -l ${seqlib} ../bam/${seqlib}.sorted.bam
+done
+
+python ~/Documents/rna_seq/prepDE.py3 -i ./ -g gene_count_matrix.csv -t transcript_count_matrix.csv
+
+
+
+
+#方法二：使用Stringtie进行定量（Reference-guided assembly and quantification），并发现新转录本
+
+# 得到.gtf文件，区分转录本
+for seqlib in ${SEQLIBS[@]}; do
+    stringtie -p 64  -G ~/Documents/rna_seq/reference/Arabidopsis_thaliana.TAIR10.60.gtf -o ${seqlib}/${seqlib}.gtf -l ${seqlib} ../bam/${seqlib}.sorted.bam
+done
+
+# 将所有样本的 GTF 文件路径写入一个文本文件
+ls */*.gtf > gtf_list.txt
+
+# 合并所有样本的GTF文件
+stringtie --merge -p 64 -G ~/Documents/rna_seq/reference/Arabidopsis_thaliana.TAIR10.60.gtf -o merged.gtf gtf_list.txt
+
+# 创建存储 gffcompare 结果的目录
+mkdir -p ~/Documents/rna_seq/${LOCA}/gffcompare
+
+# 使用 gffcompare 比较 merged.gtf 与参考注释，并将结果存储在指定目录中
+gffcompare -r ~/Documents/rna_seq/reference/Arabidopsis_thaliana.TAIR10.60.gtf -o ~/Documents/rna_seq/${LOCA}/gffcompare/gffcompare_output merged.gtf
+
+# 使用 gffcompare 生成的注释信息进行表达量估算
+for seqlib in ${SEQLIBS[@]}; do
+    stringtie -e -B -p 64 -G ~/Documents/rna_seq/${LOCA}/gffcompare/gffcompare_output.annotated.gtf -o ${seqlib}/${seqlib}.gtf ../bam/${seqlib}.sorted.bam
+done
+
+mv gffcompare_output.merged.gtf.refmap ~/Documents/rna_seq/${LOCA}/gffcompare/gffcompare_output.merged.gtf.refmap
+mv gffcompare_output.merged.gtf.tmap ~/Documents/rna_seq/${LOCA}/gffcompare/gffcompare_output.merged.gtf.tmap
+mv merged.gtf ~/Documents/rna_seq/${LOCA}/gffcompare/merged.gtf
+
+python ~/Documents/rna_seq/prepDE.py3 -i ./ -g gene_count_matrix.csv -t transcript_count_matrix.csv
+

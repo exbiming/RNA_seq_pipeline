@@ -1,0 +1,27 @@
+#基于ubuntu 22.04，安装conda
+#https://www.anaconda.com/
+
+#推荐用mamba来管理和下载conda包
+#conda install conda-forge::mamba
+
+conda env create -f RNA_seq_env.yaml
+
+conda activate rna_seq
+
+mkdir -p ~/Documents/rna_seq/reference
+cd ~/Documents/rna_seq/reference
+
+# 下载参考基因组和注释文件(拟南芥)
+wget ftp://ftp.ensemblgenomes.org/pub/plants/release-61/fasta/arabidopsis_thaliana/dna/Arabidopsis_thaliana.TAIR10.dna.toplevel.fa.gz
+wget ftp://ftp.ensemblgenomes.org/pub/plants/release-61/gff3/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.60.gff3.gz
+wget ftp://ftp.ensemblgenomes.org/pub/plants/release-61/gtf/arabidopsis_thaliana/Arabidopsis_thaliana.TAIR10.60.gtf.gz
+bgzip -d Arabidopsis_thaliana.TAIR10.dna.toplevel.fa.gz
+bgzip -d Arabidopsis_thaliana.TAIR10.60.gff3.gz
+bgzip -d Arabidopsis_thaliana.TAIR10.60.gtf.gz
+
+# 构建hisat2索引
+hisat2-build -p 64 Arabidopsis_thaliana.TAIR10.dna.toplevel.fa tair10
+
+#其它物种index下载网站
+#Index of /pub/plants (ebi.ac.uk)
+#https://ftp.ensemblgenomes.org/pub/

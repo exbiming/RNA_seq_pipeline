@@ -1,0 +1,51 @@
+#exactTest
+
+cd ~/Documents/rna_seq/${LOCA}/edgeR
+
+R
+library(limma)
+library(edgeR)
+
+# 加载基因计数矩阵
+mycounts <- read.table("expression.txt", ,sep = "\t",header=T,row.names = 1)
+head(mycounts)
+
+# 筛选感兴趣的样本
+samples_of_interest <- c("X1", "X2")
+mycounts <- mycounts[, samples_of_interest]
+head(mycounts)
+
+# 替换 NA 为 0
+sum(is.na(mycounts))
+mycounts[is.na(mycounts)] <- 0
+
+# 创建分组信息，levels = c("对照组", "实验组")
+group <- factor(c("X1", "X2"), levels = c("X1", "X2"))
+
+# 创建 DGEList 对象
+y <- DGEList(counts = mycounts, group = group)
+
+# 过滤低表达基因
+keep <- rowSums(cpm(y) > 1) >= 1
+y <- y[keep, , keep.lib.sizes = FALSE]
+
+# 标准化， TMM 
+y <- calcNormFactors(y, method = 'TMM')
+
+# 设置离散度，0.01、0.1、0.4，可用plotBCV(y)检验离散度设置是否合理
+y$common.dispersion <- 0.1
+y$trended.dispersion <- 0.1
+y$tagwise.dispersion <- rep(0.1, nrow(y))
+
+# 进行差异表达分析,pair = c("对照组", "实验组")
+et <- exactTest(y, pair = c("X1", "X2"))
+
+# 提取结果并进行 FDR 矫正
+results <- topTags(et, n = nrow(y))$table
+results$FDR <- p.adjust(results$PValue, method = "BH")  
+
+write.csv(results, file = "edgeR_exT_X2_vs_X1.csv")
+
+# 输出标准化表达量（不取对数）
+cpm_values <- cpm(y, log = FALSE)
+write.csv(cpm_values, file = "normalized_expression.csv")

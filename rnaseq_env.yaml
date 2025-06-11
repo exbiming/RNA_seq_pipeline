@@ -1,0 +1,22 @@
+name: rna_seq
+channels:
+  - conda-forge
+  - bioconda
+  - anaconda
+  - defaults
+dependencies:
+  - conda-forge::r-base
+  - bioconda::fastp
+  - bioconda::pbgzip
+  - bioconda::hisat2
+  - bioconda::samtools
+  - bioconda::gffread
+  - bioconda::stringtie
+  - bioconda::gffcompare
+  - bioconda::subread
+  - bioconda::star
+  - bioconda::bioconductor-deseq2
+  - bioconda::bioconductor-edger
+  - conda-forge::r-ggplot2
+  - anaconda::pandas
+prefix: /mnt/usr/xcm/anaconda3/envs/rna_seq

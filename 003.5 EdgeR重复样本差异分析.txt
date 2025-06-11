@@ -1,0 +1,45 @@
+# GLM
+
+cd ~/Documents/rna_seq/${LOCA}/edgeR
+
+R
+library(limma)
+library(edgeR)
+
+# 加载基因计数矩阵
+mycounts <- read.table("expression.txt", ,sep = "\t",header=T,row.names = 1)
+head(mycounts)
+
+# 筛选感兴趣的样本
+samples_of_interest <- c("X1", "X2")
+mycounts <- mycounts[, samples_of_interest]
+head(mycounts)
+
+# 替换 NA 为 0
+sum(is.na(mycounts))
+mycounts[is.na(mycounts)] <- 0
+
+# 创建分组信息，levels = c("对照组", "实验组")
+group <- factor(c("X1", "X1", "X2", "X2"), levels = c("X1", "X2"))
+
+# 创建 DGEList 对象
+y <- DGEList(counts = mycounts, group = group)
+
+# 过滤低表达基因
+keep <- rowSums(cpm(y) > 1) >= 1
+y <- y[keep, , keep.lib.sizes = FALSE]
+
+# 标准化， TMM 
+y <- calcNormFactors(y, method = 'TMM')
+
+design <- model.matrix(~group)
+y <- estimateDisp(y, design)
+fit <- glmQLFit(y, design)
+qlf <- glmQLFTest(fit, coef = 2)
+results <- topTags(qlf, n = nrow(y))$table
+
+write.csv(results, file = "edgeR_glm_X2_vs_X1.csv")
+
+# 输出标准化表达量（不取对数）
+cpm_values <- cpm(y, log = FALSE)
+write.csv(cpm_values, file = "normalized_expression.csv")

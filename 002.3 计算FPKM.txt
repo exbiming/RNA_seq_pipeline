@@ -1,0 +1,38 @@
+# 根据featureCounts定量结果计算FPKM
+
+# 获取数据，第6列是基因长度
+awk '{print $1"\t"$6"\t"$7"\t"$8"\t"$9"\t"$10"\t"$11"\t"$12"\t"$13"\t"$14}' expression_matrix.txt > counts_length.txt
+
+sed -i '1d' counts_length.txt
+sed -i '1s/\.\.\/bam\///g; 1s/\.sorted\.bam//g' counts_length.txt
+
+R
+count_data <- read.table("counts_length.txt", ,sep = "\t",header=T,row.names = 1)
+head(count_data)
+
+# 过滤行总和为0的基因，第一列是Length，-1表示从第二列开始
+count_data <- count_data[rowSums(count_data[, -1]) > 0, ]
+# 去除 Length=0 的基因
+count_data <- count_data[count_data$Length > 0, ]
+
+# 分离length (bp) 和counts
+gene_length <- count_data$Length
+counts <- count_data[, -1]
+
+# 计算每个样本的总 reads 数
+library_sizes <- colSums(counts)
+
+# 计算FPKM：(Counts * 1e9) / (GeneLength * TotalReads)
+fpkm <- counts
+for(i in 1:ncol(fpkm)) {
+  fpkm[, i] <- counts[, i] * 1e9 / (gene_length * library_sizes[i])
+}
+
+# 计算 log2(FPKM+1)
+log_fpkm <- log2(fpkm + 1)
+# 为 log2 转换后的列加上前缀，便于区分
+colnames(log_fpkm) <- paste0("log2_", colnames(fpkm))
+
+final_output <- cbind(Length = gene_length, fpkm, log_fpkm)
+head(final_output)
+write.csv(final_output, file = "FPKM.csv", quote = FALSE)

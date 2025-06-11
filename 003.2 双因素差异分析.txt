@@ -1,0 +1,89 @@
+# 用DESeq2进行有重复样本的双因素差异分析
+# 数学模型：https://www.jianshu.com/p/eeefead7adde
+
+cd ~/Documents/rna_seq/${LOCA}/deseq2
+
+R
+
+library(DESeq2)
+library(ggplot2)
+
+count_matrix <- read.table("expression.txt", ,sep = "\t",header=T,row.names = 1)
+
+# 若只对部分分析，则筛选指定列
+# count_matrix <- count_matrix[, c("X1.1", "X1.2", "X2.1", X2.2", "X3.1", "X3.2", "X4.1", X4.2")]
+
+head(count_matrix)
+
+#检查是否有NA值，用0替换
+sum(is.na(count_matrix))
+count_matrix[is.na(count_matrix)] <- 0
+
+# 替换列名中的特殊字符
+colnames(count_matrix) <- gsub("\\.", "_", colnames(count_matrix))
+
+#下一步的样本信息创建需对应表头的顺序
+head(count_matrix)
+
+# 创建样本信息数据框
+sample_names <- colnames(count_matrix)
+genotype <- factor(rep(c("col", "a1"), each = 2, times = 2))  
+treatment <- factor(rep(c("ms", "nacl"), each = 4))
+print(genotype)
+print(treatment)
+
+col_data <- data.frame(
+  row.names = sample_names,
+  genotype = genotype,
+  treatment = treatment
+)
+
+# 设置处理 "ms"和“col” 为基准水平
+col_data$treatment <- relevel(col_data$treatment, ref = "ms")
+col_data$genotype <- relevel(col_data$genotype, ref = "col")
+
+# 重新创建 DESeqDataSet 对象，主因素设为genotype，辅因素设为treatment，logFC正负性由主因素决定，考虑交互作用
+dds <- DESeqDataSetFromMatrix(countData = count_matrix,
+                              colData = col_data,
+                              design = ~ genotype + treatment + genotype:treatment)
+
+#过滤低表达基因
+keep <- rowMeans(counts(dds)) > 10
+dds <- dds[keep, ]
+
+# 运行差异分析
+dds <- DESeq(dds)
+
+# 提取标准化表达量
+normalized_counts <- counts(dds, normalized=TRUE)
+write.csv(normalized_counts, file="normalized_counts.csv", row.names=TRUE)
+
+# 查看结果名称
+resultsNames(dds)
+
+# 提取原始结果
+results_interaction <- results(dds, name = "genotypea1.treatmentnacl")
+write.csv(results_interaction, "GLM_genotypea1.treatmentnacl.csv")
+
+# 绘制MA图
+pdf("MA_GLM_genotypecq.treatmentCPT.pdf")
+plotMA(results_interaction, main="MA Plot", ylim=c(-4,4))
+dev.off()
+
+# 执行rlog变换
+rld <- rlog(dds, blind=FALSE)
+rlog_counts <- assay(rld)
+write.csv(rlog_counts, file="rlog_counts.csv", row.names=TRUE)
+
+pca_data <- plotPCA(rld, intgroup = c("genotype", "treatment"), returnData = TRUE)
+
+# 绘制 PCA 图
+pca_plot <- ggplot(pca_data, aes(x = PC1, y = PC2, color = genotype, shape = treatment)) +
+  geom_point(size = 3) +
+  labs(title = "PCA Plot", x = "PC1", y = "PC2") +
+  theme_minimal()
+
+pdf("PCA_rlog_genotype.treatment.pdf")
+print(pca_plot)
+dev.off()
+
