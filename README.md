@@ -21,7 +21,7 @@
 ##### Deseq2结果：.csv (差异基因)，normalized_counts.csv (标准化表达量)，rlog_counts.csv (rlog变换后的表达量，用于热图、PCA等)，MA_.pdf，PCA_.pdf
 
 
-#### ------------------------------------------
+##### -------------------
 #### Usage：
 The pipeline was adapted from https://github.com/exbiming/RNA_seq_pipeline.git.
 
