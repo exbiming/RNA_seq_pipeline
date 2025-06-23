@@ -1,6 +1,4 @@
-# 推动科学进步，促进技术交流
-
-分享我的 RNA_seq_pipeline
+# 分享我的 RNA_seq_pipeline
 
 ## 以下简述本代码流程：
 
@@ -23,6 +21,8 @@
 ##### Deseq2结果：.csv (差异基因)，normalized_counts.csv (标准化表达量)，rlog_counts.csv (rlog变换后的表达量，用于热图、PCA等)，MA_.pdf，PCA_.pdf
 
 
-
-## 期待在 Method 中的引用：
+#### ------------------------------------------
+#### Usage：
 The pipeline was adapted from https://github.com/exbiming/RNA_seq_pipeline.git.
+
+推动科学进步，促进技术交流。
